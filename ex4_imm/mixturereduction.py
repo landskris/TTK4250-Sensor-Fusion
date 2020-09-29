@@ -20,11 +20,11 @@ def gaussian_mixture_moments(
     cov_int = np.average(cov, axis=0, weights=w)
 
     # # spread of means
-    sum_diff = [w * my @ my.T for w, my in zip(w, mean)]
-    mean_diff = np.sum(sum_diff, axis=0)
-    cov_ext = mean_diff - mean_bar @ mean_bar.T
+    mean_diff = mean - mean_bar[None]  # None for specifying axes etc.
 
-    # total covariance
+    # Basically reshape
+    cov_ext = np.average(mean_diff[:, :, None] * mean_diff[:, None, :], axis=0, weights=w)
     cov_bar = cov_int + cov_ext
+    # total covariance
 
     return mean_bar, cov_bar

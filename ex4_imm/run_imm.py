@@ -262,6 +262,7 @@ for ci, cilbl in zip(CINIS, CI_LABELS):
 axs4[1, 1].text(K * Ts * 1.1, 1, f"{ratio_in_CI} inside CI", rotation=90)
 axs4[1, 1].legend()
 
+
 # %% tune IMM by looking at ground truth
 sigma_z = 3
 sigma_a_CV = 0.2
@@ -416,6 +417,8 @@ axs6[1, 1].set_ylabel(f"NEES: {ratio_in_CI_nees}% in CI")
 axs6[1, 1].plot([0, Ts * (K - 1)], np.repeat(CINEES[None], 2, 0), "r--")
 axs6[1, 1].set_ylim([0, 2 * CINEES[1]])
 # axs6[1, 1].text(K * Ts * 1.1, -2, f"{ratio_in_CI_nees}% inside CI", rotation=90)
+
+plt.show()
 
 # %%
 

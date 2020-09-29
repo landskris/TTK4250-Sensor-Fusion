@@ -127,8 +127,12 @@ class EKF:
         W = P @ la.solve(S, H).T
 
         x_upd = x + W @ v
-        P_upd = P - W @ H @ P
+        id_matr = np.eye(self.dynamic_model.n)
+        first_term_P = id_matr - W@H
+        R = self.sensor_model._R # (None, None, sensor_state=sensor_state)
+        P_upd = first_term_P @ P @ first_term_P.T + W @ R @ W.T # P - W @ H @ P
 
+        P_compare = P - W @ H @ P
         ekfstate_upd = GaussParams(x_upd, P_upd)
 
         return ekfstate_upd

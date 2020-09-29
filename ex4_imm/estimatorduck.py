@@ -31,13 +31,13 @@ class StateEstimator(Protocol[T]):
     def step(self, z: np.ndarray, eststate: T, Ts: float) -> T:
         ...
 
-    def estimate(self, estastate: T) -> GaussParams:
+    def estimate(self, eststate: T) -> GaussParams:
         ...
 
     def init_filter_state(self, init: Any) -> T:
         ...
 
-    def innovation(self, z: np.ndarray, ekfstate: GaussParams, *, sensor_state: Dict[str, Any] = None,
+    def innovation(self, z: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,
     ) -> GaussParams:
         ...
 
@@ -49,12 +49,12 @@ class StateEstimator(Protocol[T]):
     def reduce_mixture(self, estimator_mixture: MixtureParameters[T]) -> T:
         ...
 
-    def gate(
-        self,
-        z: np.ndarray,
-        eststate: T,
-        gate_size: float,
-        *,
-        sensor_state: Dict[str, Any] = None
+    def gate(self, z: np.ndarray, eststate: T, gate_size: float, *, sensor_state: Dict[str, Any] = None
     ) -> bool:
         ...
+
+    def NIS(self, z: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,
+    ) -> float: ...
+
+    def NEES( self, z: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,
+    ) -> float: ...

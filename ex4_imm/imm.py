@@ -145,9 +145,9 @@ class IMM(Generic[MT]):
            We assume the state predictions and other parameters are done, we only run state update from EKF cycle.
         """
 
-        updated_state = [ekf.update(z=z, ekfstate=mode_state, sensor_state=sensor_state)
-                         for ekf, mode_state
-                         in zip(self.filters, *immstate.components)]
+        updated_state = [fs.update(z, mode_state, sensor_state=sensor_state)
+                         for fs, mode_state
+                         in zip(self.filters, immstate.components)]
 
         return updated_state
 
@@ -207,7 +207,8 @@ class IMM(Generic[MT]):
             sensor_state: Dict[str, Any] = None,
     ) -> float:
         """ Return likelihood for specific mode, with its filter and components inputted"""
-
+        mode_conditioned_ll = filter.loglikelihood(z, component, sensor_state=sensor_state)
+        """
         v, S = filter.innovation(z, component, sensor_state=sensor_state)
 
         cholS = linalg.cholesky(S, lower=True)
@@ -221,6 +222,7 @@ class IMM(Generic[MT]):
 
         log_to_pi_by_2 = filter.sensor_model.m * np.log(2 * np.pi) / 2
         mode_conditioned_ll = -(NISby2 + logdetSby2 + log_to_pi_by_2)
+        """
 
         return mode_conditioned_ll
 
@@ -425,20 +427,19 @@ class IMM(Generic[MT]):
         start_with_prediction: bool = False,
     ) -> Tuple[List[MixtureParameters], List[MixtureParameters], List[GaussParams]]:
         """Create estimates for the whole time series of measurements. """
-
-        # sequence length
-        K = len(Z)
+        k = len(Z)
 
         # Create and amend the sampling array
-        Ts_start_idx = int(not start_with_prediction)
-        Ts_arr = np.empty(K)
-        Ts_arr[Ts_start_idx:] = Ts
+        ts_start_idx = 0 if start_with_prediction else 1
+        ts_arr = np.empty(k)  # Init timestep array
+        ts_arr[ts_start_idx:] = Ts
+
         # Insert a zero time prediction for no prediction equivalence
         if not start_with_prediction:
-            Ts_arr[0] = 0
+            ts_arr[0] = 0
 
         # Make sure the sensor_state_list actually is a sequence
-        sensor_state_seq = sensor_state or [None] * K
+        sensor_state_seq = sensor_state or [None] * k
 
         init_immstate = self.init_filter_state(init_immstate)
 
@@ -448,7 +449,7 @@ class IMM(Generic[MT]):
         immstate_upd_list = []
         estimates = []
 
-        for z_k, Ts_k, ss_k in zip(Z, Ts_arr, sensor_state_seq):
+        for z_k, Ts_k, ss_k in zip(Z, ts_arr, sensor_state_seq):
             immstate_pred = self.predict(immstate_upd, Ts_k)
             immstate_upd = self.update(z_k, immstate_pred, sensor_state=ss_k)
 
