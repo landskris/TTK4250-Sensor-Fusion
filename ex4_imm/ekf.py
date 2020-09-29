@@ -20,11 +20,12 @@ import scipy.linalg as la
 import scipy
 
 # local
-import dynamicmodels as dynmods
-import measurementmodels as measmods
-from gaussparams import GaussParams, GaussParamList
-from mixturedata import MixtureParameters
-import mixturereduction
+import ex4_imm.dynamicmodels as dynmods
+import ex4_imm.measurementmodels as measmods
+from ex4_imm import mixturereduction
+from ex4_imm.gaussparams import GaussParams, GaussParamList
+from ex4_imm.mixturedata import MixtureParameters
+import ex4_imm.mixturereduction
 
 # %% The EKF
 
@@ -167,6 +168,20 @@ class EKF:
         # alternative:
         # NIS = v @ la.solve(S, v)
         return NIS
+
+    def NEES(
+        self,
+        z: np.ndarray,
+        ekfstate: GaussParams,
+        *,
+        sensor_state: Dict[str, Any] = None,
+    ) -> float:
+        """Calculate the normalized estimated error squared for ekfstate"""
+
+        x_true, P = self.update(z, ekfstate, sensor_state)
+        state_diff = ekfstate.mean - x_true
+        NEES = state_diff @ la.solve(P, state_diff)  # No need to specify state_diff.T for la.solve
+        return NEES
 
     @classmethod
     def estimate(cls, ekfstate: GaussParams):

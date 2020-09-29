@@ -1,12 +1,12 @@
-# %% imports
+""" Class to test-run a mixture reduction"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
-from mixturereduction import gaussian_mixture_moments
+from ex4_imm.mixturereduction import gaussian_mixture_moments
 
 # %% setup and show initial
-# TODO: fill in values
-mus = np.array([1, 1, 1]).reshape(3, 1)
+
+mus = np.array([1, 2, 3]).reshape(3, 1)
 sigmas = np.array([1, 1, 1]).reshape(
     3, 1, 1
 )  # note std and not var as in gaussian_mixture_moments
@@ -29,9 +29,11 @@ pdf_comp_vals = np.array(
 )
 pdf_mix_vals = np.average(pdf_comp_vals, axis=0, weights=w)
 
+# Plot
 for i in range(len(mus)):
     ax1.plot(x, pdf_comp_vals[i], label=f"comp {i}")
 ax1.legend()
+
 
 # %% merge and show combinations
 fi2, ax2 = plt.subplots(num=2, clear=True)
@@ -66,4 +68,4 @@ print(mucomb)
 print(sigma2comb)
 sigmacomb = np.sqrt(sigma2comb)
 
-# %%
+plt.show()

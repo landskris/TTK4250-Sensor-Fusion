@@ -2,8 +2,10 @@
 from typing import Dict, Any, Generic, TypeVar
 from typing_extensions import Protocol, runtime
 
-from mixturedata import MixtureParameters
-from gaussparams import GaussParams
+from ex4_imm.dynamicmodels import DynamicModel
+from ex4_imm.measurementmodels import MeasurementModel
+from ex4_imm.mixturedata import MixtureParameters
+from ex4_imm.gaussparams import GaussParams
 
 import numpy as np
 
@@ -13,6 +15,11 @@ T = TypeVar("T")
 
 @runtime
 class StateEstimator(Protocol[T]):
+    # A Protocol so duck typing can be used
+    dynamic_model: DynamicModel
+    # A Protocol so duck typing can be used
+    sensor_model: MeasurementModel
+
     def predict(self, eststate: T, Ts: float) -> T:
         ...
 
@@ -28,6 +35,10 @@ class StateEstimator(Protocol[T]):
         ...
 
     def init_filter_state(self, init: Any) -> T:
+        ...
+
+    def innovation(self, z: np.ndarray, ekfstate: GaussParams, *, sensor_state: Dict[str, Any] = None,
+    ) -> GaussParams:
         ...
 
     def loglikelihood(

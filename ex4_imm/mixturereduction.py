@@ -13,18 +13,18 @@ def gaussian_mixture_moments(
     """Calculate the first two moments of a Gaussian mixture"""
 
     # mean
-    mean_bar = np.average(mean, axis=0, weights=w)  # TODO: hint np.average using axis and weights argument
+    mean_bar = np.average(mean, axis=0, weights=w)
 
     # covariance
     # # internal covariance
-    cov_int = np.average(cov, axis=0, weights=w)  # TODO: hint, also an average
+    cov_int = np.average(cov, axis=0, weights=w)
 
     # # spread of means
     sum_diff = [w * my @ my.T for w, my in zip(w, mean)]
     mean_diff = np.sum(sum_diff, axis=0)
-    cov_ext = mean_diff - mean_bar @ mean_bar.T  # TODO: hint, also an average
+    cov_ext = mean_diff - mean_bar @ mean_bar.T
 
-    # # total covariance
+    # total covariance
     cov_bar = cov_int + cov_ext
 
     return mean_bar, cov_bar

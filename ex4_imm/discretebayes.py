@@ -4,24 +4,24 @@ import numpy as np
 
 
 def discrete_bayes(
-    # the prior: shape=(n,)
+    # the prior: shape=(n,) -> Mixture weights
     pr: np.ndarray,
-    # the conditional/likelihood: shape=(n, m)
+    # the conditional/likelihood: shape=(n, m) -> Transition matrix
     cond_pr: np.ndarray,
 ) -> Tuple[
     np.ndarray, np.ndarray
 ]:  # the new marginal and conditional: shapes=((m,), (m, n))
     """Swap which discrete variable is the marginal and conditional."""
+    # (n, m)
+    joint = pr[:, None] * cond_pr  # prior weights elementwise multiplied with transition -> mu_k-1 * pi
 
-    joint = # TDOO
-
-    marginal = # TODO
+    marginal = np.sum(joint, axis=0)  # Pr{Sk | z_k-1} summed over Sk_1, axis = 0
 
     # Take care of rare cases of degenerate zero marginal,
-    conditional = # TODO
+    conditional = joint / marginal if np.nonzero(marginal) else joint / marginal + 10e-5
 
-    # flip axes?? (n, m) -> (m, n)
-    # conditional = conditional.T
+    # flip axes?? (n, m) -> (m, n) -> Expected output
+    conditional = conditional.T
 
     # optional DEBUG
     assert np.all(
