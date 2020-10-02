@@ -47,7 +47,7 @@ class StateEstimator(Protocol[T]):
         ...
 
     def reduce_mixture(self, estimator_mixture: MixtureParameters[T]) -> T:
-        ...
+        ... #todo must not
 
     def gate(self, z: np.ndarray, eststate: T, gate_size: float, *, sensor_state: Dict[str, Any] = None
     ) -> bool:

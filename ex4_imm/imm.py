@@ -208,22 +208,6 @@ class IMM(Generic[MT]):
     ) -> float:
         """ Return likelihood for specific mode, with its filter and components inputted"""
         mode_conditioned_ll = filter.loglikelihood(z, component, sensor_state=sensor_state)
-        """
-        v, S = filter.innovation(z, component, sensor_state=sensor_state)
-
-        cholS = linalg.cholesky(S, lower=True)
-
-        invcholS_v = linalg.solve_triangular(cholS, v, lower=True)
-        NISby2 = (invcholS_v ** 2).sum() / 2
-        # alternative self.NIS(...) /2 or v @ la.solve(S, v)/2
-
-        logdetSby2 = np.log(cholS.diagonal()).sum()
-        # alternative use la.slogdet(S)
-
-        log_to_pi_by_2 = filter.sensor_model.m * np.log(2 * np.pi) / 2
-        mode_conditioned_ll = -(NISby2 + logdetSby2 + log_to_pi_by_2)
-        """
-
         return mode_conditioned_ll
 
     def reduce_mixture(
@@ -257,20 +241,19 @@ class IMM(Generic[MT]):
         est = self.filters[0].estimate(data_reduction)
         return est
 
-    def gate(
-        self,
-        z: np.ndarray,
-        immstate: MixtureParameters[MT],
-        gate_size: float,
-        sensor_state: Dict[str, Any] = None,
-    ) -> bool:
-        """Check if z is within the gate of any mode in immstate in sensor_state"""
-
-        # THIS IS ONLY NEEDED FOR PDA. You can wait with implementation if you want
-        gated_per_mode = None # TODO
-
-        gated = None # TODO
-        return gated
+    def gate(self, z: np.ndarray, immstate: MixtureParameters[MT], gate_size: float,
+             sensor_state: Dict[str, Any] = None) -> bool:
+        """
+        Check if z is within the gate of any mode in immstate in sensor_state
+        :param z:
+        :param immstate:
+        :param gate_size: NOT SQUARED
+        :param sensor_state:
+        :return:
+        """
+        _, nises = self.NISes(z, immstate, sensor_state=sensor_state)
+        gated = nises < gate_size ** 2
+        return any(gated)
 
     def NISes(
         self,
