@@ -179,21 +179,26 @@ class EKF:
         # NIS = v @ la.solve(S, v)
         return NIS
 
-    def NEES(
+    def NEES_old(
         self,
         z: np.ndarray,
         ekfstate: GaussParams,
         *,
         sensor_state: Dict[str, Any] = None,
     ) -> float:
-        """Calculate the normalized estimated error squared for ekfstate
+        """
+            Calculate the normalized estimated error squared for ekfstate
             Predicted state is inputted for ekfstate
         """
+
         # todo check this func
         x_true, P = self.update(z, ekfstate, sensor_state)
         state_diff = ekfstate.mean - x_true
         NEES = state_diff @ la.solve(P, state_diff)  # No need to specify state_diff.T for la.solve
         return NEES
+
+    def NEES(self, x_true: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,) -> float:
+        return mahalanobis_distance_squared(x_est=eststate.mean, x_gt=x_true, psd_mat=eststate.cov)
 
     def NEES_from_gt(self, x_pred: np.ndarray, x_gt: np.ndarray, cov_matr: np.ndarray) -> float:
         return mahalanobis_distance_squared(x_pred, x_gt, cov_matr)

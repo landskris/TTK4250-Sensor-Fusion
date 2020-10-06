@@ -105,12 +105,15 @@ for k, Zk in enumerate(Z):
     plt.pause(plotpause)
 # %%
 """
-sigma_a = 0.2
-sigma_z = 3
 
+# Model parameters EKF
+sigma_a = 6  # From EKF exc 3
+sigma_z = 4  # From EKF exc 3
+
+# PDA relevant
 PD = 0.6
 clutter_intensity = 10e-10 # TODO # Basically estimated from poisson clutter model, makes no sense to have fixed one
-gate_size = 0.3
+gate_size = 2
 
 dynamic_model = dynamicmodels.WhitenoiseAccelleration(sigma_a)
 measurement_model = measurementmodels.CartesianPosition(sigma_z)

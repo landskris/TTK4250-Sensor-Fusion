@@ -290,13 +290,13 @@ class IMM(Generic[MT]):
     ):
         NEESes = np.array(
             [
-                fs.NEES(ms, x_true, idx=idx)
-                for fs, ms in zip(self.filters, immstate.components)
+                fs.NEES(eststate=est_comp, x_true=x_true, idx=idx)
+                for fs, est_comp in zip(self.filters, immstate.components)
             ]
         )
         est = self.estimate(immstate)
 
-        NEES = self.filters[0].NEES(est, x_true, idx=idx)  # HACK?
+        NEES = self.filters[0].NEES(eststate=est, x_true=x_true, idx=idx)  # HACK?
         return NEES, NEESes
 
     # @singledispatchmethod todo set back
