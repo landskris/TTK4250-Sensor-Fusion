@@ -10,7 +10,7 @@ S is the innovation covariance
 """
 # %% Imports
 # types
-from typing import Union, Callable, Any, Dict, Optional, List, Sequence, Tuple, Iterable
+from typing import Union, Callable, Any, Dict, Optional, List, Sequence, Tuple, Iterable, TypeVar
 from typing_extensions import Final
 
 # packages
@@ -23,12 +23,13 @@ import scipy
 import ex4_imm.dynamicmodels as dynmods
 import ex4_imm.measurementmodels as measmods
 from ex4_imm import mixturereduction
+from ex4_imm.estimationstatistics import mahalanobis_distance_squared
 from ex4_imm.gaussparams import GaussParams, GaussParamList
 from ex4_imm.mixturedata import MixtureParameters
 import ex4_imm.mixturereduction
 
 # %% The EKF
-
+ET = TypeVar("ET")
 
 @dataclass
 class EKF:
@@ -41,6 +42,9 @@ class EKF:
 
     def __post_init__(self) -> None:
         self._MLOG2PIby2: Final[float] = self.sensor_model.m * np.log(2 * np.pi) / 2
+
+    def init_filter_state(self, init_state: "ET_like"):
+        return GaussParams(init_state['mean'], init_state['cov'])
 
     def predict(
         self,
@@ -182,12 +186,17 @@ class EKF:
         *,
         sensor_state: Dict[str, Any] = None,
     ) -> float:
-        """Calculate the normalized estimated error squared for ekfstate"""
-
+        """Calculate the normalized estimated error squared for ekfstate
+            Predicted state is inputted for ekfstate
+        """
+        # todo check this func
         x_true, P = self.update(z, ekfstate, sensor_state)
         state_diff = ekfstate.mean - x_true
         NEES = state_diff @ la.solve(P, state_diff)  # No need to specify state_diff.T for la.solve
         return NEES
+
+    def NEES_from_gt(self, x_pred: np.ndarray, x_gt: np.ndarray, cov_matr: np.ndarray) -> float:
+        return mahalanobis_distance_squared(x_pred, x_gt, cov_matr)
 
     @classmethod
     def estimate(cls, ekfstate: GaussParams):

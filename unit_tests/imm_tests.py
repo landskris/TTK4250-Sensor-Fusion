@@ -64,5 +64,6 @@ class TestIMM(unittest.TestCase):
     def test_update_mode_probability(self):
         self.imm_filter.update_mode_probabilities(self.pregen.Z, self.init_immstate)
 
+
 if __name__ == "__main__":
     unittest.main()

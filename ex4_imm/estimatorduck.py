@@ -58,3 +58,6 @@ class StateEstimator(Protocol[T]):
 
     def NEES( self, z: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,
     ) -> float: ...
+
+    def NEES_from_gt(self, x_pred: np.ndarray, x_gt: np.ndarray, cov_matr: np.ndarray) -> float:
+        ...

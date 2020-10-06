@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import scipy
 import scipy.special
+from scipy.special import logsumexp
 
 from ex4_imm.estimatorduck import StateEstimator
 
@@ -54,8 +55,8 @@ class PDA(Generic[ET]):  # Probabilistic Data Association
         ll = np.empty(Z.shape[0] + 1)
 
         # calculate log likelihood ratios
-        ll[0] = log_clutter * log_PND
-        ll[1:] = log_PD * [self.state_filter.loglikelihood(meas, filter_state, sensor_state=sensor_state) for
+        ll[0] = log_clutter + log_PND
+        ll[1:] = log_PD + [self.state_filter.loglikelihood(meas, filter_state, sensor_state=sensor_state) for
                            meas in Z]
 
         return ll
@@ -74,7 +75,7 @@ class PDA(Generic[ET]):  # Probabilistic Data Association
         lls = self.loglikelihood_ratios(Z, filter_state, sensor_state=sensor_state)
 
         # probabilities
-        beta = np.exp(lls) #todo consider logsumexp
+        beta = np.exp(lls - logsumexp(lls))  # Normalized likelihood ratios
         return beta
 
     def conditional_update(
@@ -127,7 +128,7 @@ class PDA(Generic[ET]):  # Probabilistic Data Association
         beta = self.association_probabilities(Zg, filter_state, sensor_state=sensor_state)
 
         # find the mixture components
-        filter_state_updated_mixture_components = self.conditional_update(Z, filter_state, sensor_state=sensor_state)
+        filter_state_updated_mixture_components = self.conditional_update(Zg, filter_state, sensor_state=sensor_state)
 
         # make mixture
         filter_state_updated_mixture = MixtureParameters(beta, filter_state_updated_mixture_components)
