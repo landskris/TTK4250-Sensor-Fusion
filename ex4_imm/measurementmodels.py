@@ -26,7 +26,6 @@ class MeasurementModel(Protocol):
     ) -> np.ndarray:
         ...
 
-
 # %% Models
 
 

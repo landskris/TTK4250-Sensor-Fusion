@@ -105,8 +105,8 @@ class IMM(Generic[MT]):
         Ts: float,
     ) -> List[MT]:
 
-        modestates_pred = [filt.predict(mode_state, Ts)
-                           for filt, mode_state
+        modestates_pred = [fs.predict(mode_state, Ts)
+                           for fs, mode_state
                            in zip(self.filters, mode_states)]
 
         return modestates_pred
@@ -142,7 +142,8 @@ class IMM(Generic[MT]):
         sensor_state: Optional[Dict[str, Any]] = None,
     ) -> List[MT]:
         """Update each mode in immstate with z in sensor_state.
-           We assume the state predictions and other parameters are done, we only run state update from EKF cycle.
+           We assume the state predictions and other parameters are enclosed in immstate,
+           we only run state update from EKF cycle.
         """
 
         updated_state = [fs.update(z, mode_state, sensor_state=sensor_state)
@@ -160,7 +161,7 @@ class IMM(Generic[MT]):
         """Calculate the mode probabilities in immstate updated with z in sensor_state"""
 
         # returns list of log likelihood scalars for each mode [log(p_sk1), log(p_sk2), .. ]
-        mode_cond_likelihoods = [(self.mode_loglikelihood(z, filt, gauss_params))
+        mode_cond_likelihoods = [self.mode_loglikelihood(z, filt, gauss_params, sensor_state=sensor_state)
                                  for filt, gauss_params in zip(self.filters, immstate.components)]
 
         log_joint = mode_cond_likelihoods + np.log(immstate.weights)  # Assume mode probs inside state
@@ -199,37 +200,41 @@ class IMM(Generic[MT]):
 
         return updated_immstate
 
-    def mode_loglikelihood(
-            self,
-            z: np.ndarray,
-            filter: StateEstimator[MT],
-            component: GaussParams,
-            sensor_state: Dict[str, Any] = None,
+    def loglikelihood(self, z: np.ndarray, immstate: MixtureParameters, *, sensor_state: Dict[str, Any] = None,
     ) -> float:
-        """ Return likelihood for specific mode, with its filter and components inputted"""
+        """
+        A loglikelihhod function adapted to different input parameters, essentially same as:
+            mode_cond_likelihood + np.log(predicted_mode_probs)
+        :param z: Measurements [ ] one-dimensional array
+        :param immstate: Mixture, with predicted mode probabilities as weights.
+        :return: float. Total summed loglikelihood.
+        """
+
+        mode_cond_likelihoods = [self.mode_loglikelihood(z, filt, state, sensor_state=sensor_state)
+                                 for filt, state in zip(self.filters, immstate.components)]
+
+        assert len(mode_cond_likelihoods) == len(immstate.weights), \
+            'Length of weighted likelihood is unlike length of mode conditional likelihoods'
+
+        summed_ll = logsumexp(a=mode_cond_likelihoods, b=immstate.weights)
+
+        return summed_ll
+
+    def mode_loglikelihood( self, z: np.ndarray, filter: StateEstimator[MT], component: GaussParams,
+                            sensor_state: Dict[str, Any] = None,) -> float:
+        """ Return loglikelihood for specific mode, with its filter and components inputted"""
         mode_conditioned_ll = filter.loglikelihood(z, component, sensor_state=sensor_state)
-        """
-        v, S = filter.innovation(z, component, sensor_state=sensor_state)
-
-        cholS = linalg.cholesky(S, lower=True)
-
-        invcholS_v = linalg.solve_triangular(cholS, v, lower=True)
-        NISby2 = (invcholS_v ** 2).sum() / 2
-        # alternative self.NIS(...) /2 or v @ la.solve(S, v)/2
-
-        logdetSby2 = np.log(cholS.diagonal()).sum()
-        # alternative use la.slogdet(S)
-
-        log_to_pi_by_2 = filter.sensor_model.m * np.log(2 * np.pi) / 2
-        mode_conditioned_ll = -(NISby2 + logdetSby2 + log_to_pi_by_2)
-        """
-
         return mode_conditioned_ll
 
     def reduce_mixture(
         self, immstate_mixture: MixtureParameters[MixtureParameters[MT]]
     ) -> MixtureParameters[MT]:
-        """Approximate a mixture of immstates as a single immstate"""
+        """
+        Approximate a mixture of immstates as a single immstate.
+
+        :param immstate_mixture: Association probabilities weighted mode mixtures
+        :return: Reduced mixture
+        """
 
         # extract probabilities as array
         weights = immstate_mixture.weights
@@ -257,20 +262,18 @@ class IMM(Generic[MT]):
         est = self.filters[0].estimate(data_reduction)
         return est
 
-    def gate(
-        self,
-        z: np.ndarray,
-        immstate: MixtureParameters[MT],
-        gate_size: float,
-        sensor_state: Dict[str, Any] = None,
-    ) -> bool:
-        """Check if z is within the gate of any mode in immstate in sensor_state"""
-
-        # THIS IS ONLY NEEDED FOR PDA. You can wait with implementation if you want
-        gated_per_mode = None # TODO
-
-        gated = None # TODO
-        return gated
+    def gate(self, z: np.ndarray, immstate: MixtureParameters[MT], gate_size: float,
+             sensor_state: Dict[str, Any] = None) -> bool:
+        """
+        Check if z is within the gate of any mode in immstate in sensor_state
+        :param z: Measurements z, single array. [state_dim]
+        :param gate_size: NOT SQUARED
+        :param sensor_state:
+        :return: bool
+        """
+        _, nises = self.NISes(z, immstate, sensor_state=sensor_state)
+        gated = nises < gate_size ** 2
+        return any(gated)
 
     def NISes(
         self,
@@ -279,7 +282,7 @@ class IMM(Generic[MT]):
         *,
         sensor_state: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, np.ndarray]:
-        """Calculate NIS per mode and the average"""
+        """Calculate NIS per mode and the average NIS for all modes"""
         NISes = np.array(
             [
                 fs.NIS(z, ms, sensor_state=sensor_state)
@@ -307,13 +310,13 @@ class IMM(Generic[MT]):
     ):
         NEESes = np.array(
             [
-                fs.NEES(ms, x_true, idx=idx)
-                for fs, ms in zip(self.filters, immstate.components)
+                fs.NEES(eststate=est_comp, x_true=x_true, idx=idx)
+                for fs, est_comp in zip(self.filters, immstate.components)
             ]
         )
         est = self.estimate(immstate)
 
-        NEES = self.filters[0].NEES(est, x_true, idx=idx)  # HACK?
+        NEES = self.filters[0].NEES(eststate=est, x_true=x_true, idx=idx)  # HACK?
         return NEES, NEESes
 
     # @singledispatchmethod todo set back

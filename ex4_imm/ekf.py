@@ -10,7 +10,7 @@ S is the innovation covariance
 """
 # %% Imports
 # types
-from typing import Union, Callable, Any, Dict, Optional, List, Sequence, Tuple, Iterable
+from typing import Union, Callable, Any, Dict, Optional, List, Sequence, Tuple, Iterable, TypeVar
 from typing_extensions import Final
 
 # packages
@@ -23,12 +23,13 @@ import scipy
 import ex4_imm.dynamicmodels as dynmods
 import ex4_imm.measurementmodels as measmods
 from ex4_imm import mixturereduction
+from ex4_imm.estimationstatistics import mahalanobis_distance_squared
 from ex4_imm.gaussparams import GaussParams, GaussParamList
 from ex4_imm.mixturedata import MixtureParameters
 import ex4_imm.mixturereduction
 
 # %% The EKF
-
+ET = TypeVar("ET")
 
 @dataclass
 class EKF:
@@ -41,6 +42,9 @@ class EKF:
 
     def __post_init__(self) -> None:
         self._MLOG2PIby2: Final[float] = self.sensor_model.m * np.log(2 * np.pi) / 2
+
+    def init_filter_state(self, init_state: "ET_like"):
+        return GaussParams(init_state['mean'], init_state['cov'])
 
     def predict(
         self,
@@ -127,12 +131,14 @@ class EKF:
         W = P @ la.solve(S, H).T
 
         x_upd = x + W @ v
-        id_matr = np.eye(self.dynamic_model.n)
+
+        # Joseph form (I - W_k H) P_{k|k-1} (I - W_k H)^T + WRW^T
+        id_matr = np.eye(self.dynamic_model.n)  # todo consider use other state_dim extraction than n
         first_term_P = id_matr - W@H
         R = self.sensor_model._R # (None, None, sensor_state=sensor_state)
         P_upd = first_term_P @ P @ first_term_P.T + W @ R @ W.T # P - W @ H @ P
 
-        P_compare = P - W @ H @ P
+        # P_compare = P - W @ H @ P
         ekfstate_upd = GaussParams(x_upd, P_upd)
 
         return ekfstate_upd
@@ -173,24 +179,47 @@ class EKF:
         # NIS = v @ la.solve(S, v)
         return NIS
 
-    def NEES(
+    def NEES_old(
         self,
         z: np.ndarray,
         ekfstate: GaussParams,
         *,
         sensor_state: Dict[str, Any] = None,
     ) -> float:
-        """Calculate the normalized estimated error squared for ekfstate"""
+        """
+            Calculate the normalized estimated error squared for ekfstate
+            Predicted state is inputted for ekfstate
+        """
 
+        # todo check this func
         x_true, P = self.update(z, ekfstate, sensor_state)
         state_diff = ekfstate.mean - x_true
         NEES = state_diff @ la.solve(P, state_diff)  # No need to specify state_diff.T for la.solve
         return NEES
 
+    def NEES(self, x_true: np.ndarray, eststate: GaussParams, *, sensor_state: Dict[str, Any] = None,) -> float:
+        return mahalanobis_distance_squared(x_est=eststate.mean, x_gt=x_true, psd_mat=eststate.cov)
+
+    def NEES_from_gt(self, x_pred: np.ndarray, x_gt: np.ndarray, cov_matr: np.ndarray) -> float:
+        return mahalanobis_distance_squared(x_pred, x_gt, cov_matr)
+
     @classmethod
     def estimate(cls, ekfstate: GaussParams):
         """Get the estimate from the state with its covariance. (Compatibility method)"""
         return ekfstate
+
+    def gate(self, z: np.ndarray, ekfstate: GaussParams, gate_size: float, sensor_state: Dict[str, Any] = None,) -> \
+            bool:
+        """
+        Check if z is within the gate of any mode in ekfstate in sensor_state
+        We assume ekfstate to be x_pred_k_k-1 and pred covariance P_k_k-1
+        Gate/validate measurements: (z-h(x))'S^(-1)(z-h(x)) <= g^2.
+
+        :param gate_size: NOT SQUARED -> Square the input gate_size for ellipse
+        :return: bool
+        """
+        nis = self.NIS(z, ekfstate, sensor_state=sensor_state)
+        return nis < gate_size ** 2
 
     def loglikelihood(
         self,

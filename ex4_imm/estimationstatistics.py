@@ -4,13 +4,13 @@ import numpy as np
 
 def mahalanobis_distance_squared(
     # shape (n,)
-    a: np.ndarray,
+    x_est: np.ndarray,
     # shape (n,)
-    b: np.ndarray,
+    x_gt: np.ndarray,
     # shape (n, n)
     psd_mat: np.ndarray,
 ) -> float:  # positive
-    diff = a - b
+    diff = x_est - x_gt
     dist = diff @ np.linalg.solve(psd_mat, diff)
     return dist
 

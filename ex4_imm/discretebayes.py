@@ -18,7 +18,7 @@ def discrete_bayes(
     marginal = np.sum(joint, axis=0)  # Pr{Sk | z_k-1} summed over Sk_1, axis = 0
 
     # Take care of rare cases of degenerate zero marginal,
-    conditional = joint / marginal if np.nonzero(marginal) else joint / marginal + 10e-5
+    conditional = joint / marginal if np.nonzero(marginal) else joint / marginal + 10e-8
 
     # flip axes?? (n, m) -> (m, n) -> Expected output
     conditional = conditional.T
