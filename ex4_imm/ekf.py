@@ -133,7 +133,7 @@ class EKF:
         x_upd = x + W @ v
 
         # Joseph form (I - W_k H) P_{k|k-1} (I - W_k H)^T + WRW^T
-        id_matr = np.eye(self.dynamic_model.n)
+        id_matr = np.eye(self.dynamic_model.n)  # todo consider use other state_dim extraction than n
         first_term_P = id_matr - W@H
         R = self.sensor_model._R # (None, None, sensor_state=sensor_state)
         P_upd = first_term_P @ P @ first_term_P.T + W @ R @ W.T # P - W @ H @ P
