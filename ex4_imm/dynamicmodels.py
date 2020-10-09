@@ -113,7 +113,7 @@ class WhitenoiseAccelleration:
 @dataclass
 class ConstantTurnrate:
     sigma_a: float
-    sigma_omgea: float
+    sigma_omega: float
     n: int = 5
     pos_idx: np.ndarray = np.arange(2)
     vel_idx: np.ndarray = np.arange(2, 4)
@@ -128,7 +128,7 @@ class ConstantTurnrate:
 
     def __post_init__(self):
         self._sigma_a2 = self.sigma_a ** 2
-        self._sigma_omega2 = self.sigma_omgea ** 2
+        self._sigma_omega2 = self.sigma_omega ** 2
 
         self._state = np.zeros(self.n)
         self._F_mat = np.zeros((self.n, self.n))

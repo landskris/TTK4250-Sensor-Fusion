@@ -7,6 +7,8 @@ import scipy.stats
 
 from ex4_imm import dynamicmodels, measurementmodels, ekf
 from ex4_imm.estimationstatistics import mahalanobis_distance_squared
+from ex4_imm.gaussparams import GaussParams
+from ex4_imm.mixturedata import MixtureParameters
 from exc5 import pda
 
 
@@ -107,17 +109,35 @@ for k, Zk in enumerate(Z):
 """
 
 # Model parameters EKF
-sigma_a = 6  # From EKF exc 3
-sigma_z = 4  # From EKF exc 3
+sigma_a_CT = 6  #
+sigma_a_CV = 4  #
+sigma_z = 4
+sigma_omega = 0.002 * np.pi
 
-# PDA relevant
+# Model initiation
+dim = 5
+CV = dynamicmodels.WhitenoiseAccelleration(sigma_a_CV, n=dim)
+CT = dynamicmodels.ConstantTurnrate(sigma_a_CT, sigma_omega)
+measurement_model = measurementmodels.CartesianPosition(sigma_z, state_dim=dim)
+ekf_filters = [ekf.EKF(CV, measurement_model), ekf.EKF(CT, measurement_model)]
+models_dim = len(ekf_filters)
+# Transition matrix, index based on order of ekf_filters
+               # CV    CT
+PI = np.array([[0.95, 0.05],  # CV
+               [0.05, 0.95]])  # CT
+
+assert np.allclose(PI.sum(axis=1), 1), "rows of PI must sum to 1"
+# IMM parameters
+init_weights = np.array([0.5] * models_dim)
+init_mean = [0] * dim
+init_cov = np.diag([1] * dim)  # HAVE TO BE DIFFERENT: use intuition, eg. diag guessed distance to true values squared.
+init_mode_states = [GaussParams(init_mean, init_cov)] * models_dim  # copy of the two modes
+init_immstate = MixtureParameters(init_weights, init_mode_states)
+
+# PDA parameters
 PD = 0.6
 clutter_intensity = 10e-10 # TODO # Basically estimated from poisson clutter model, makes no sense to have fixed one
 gate_size = 2
-
-dynamic_model = dynamicmodels.WhitenoiseAccelleration(sigma_a)
-measurement_model = measurementmodels.CartesianPosition(sigma_z)
-ekf_filter = ekf.EKF(dynamic_model, measurement_model)
 
 tracker = pda.PDA(ekf_filter, clutter_intensity, PD, gate_size)
 

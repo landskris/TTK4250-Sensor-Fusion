@@ -231,23 +231,48 @@ class IMM(Generic[MT]):
     ) -> MixtureParameters[MT]:
         """
         Approximate a mixture of immstates as a single immstate.
-
-        :param immstate_mixture: Association probabilities weighted mode mixtures
+        :param immstate_mixture: Association probabilities weighted mode mixtures.
+        { weights: [], mixtureComponents}
+        {  Pr{a_k | Z_1:k} ,    }
         :return: Reduced mixture
         """
 
-        # extract probabilities as array
+        #  P(a_k = j | Z_1:k) -> Length m_k + 1
         weights = immstate_mixture.weights
+
+        # P(s_k=i | a_k=j, Z_1:k) -> Length of # modes
         component_conditioned_mode_prob = np.array(
             [c.weights.ravel() for c in immstate_mixture.components]
         )
+        # where inner gaussParams inside immstate_mixture.components.components
+        # would be P(x_k | s_k=i, a_k=j, Z_1:k) for each mode ->
 
-        # flip conditioning order with Bayes
-        mode_prob, mode_conditioned_component_prob = None # TODO
+        # flip conditioning order with Bayes, sum over a_k j's, so we get right dimension out ( mode dimensions)
+        # Prior: P(a_k = j | Z_1:k)     Conditional: P(s_k=i |a_k = j, Z_1:k)
+        mode_prob, mode_conditioned_component_prob = discretebayes.discrete_bayes(
+            weights, component_conditioned_mode_prob)
+        # Returns ->
+        # Marginal: P(s_k=i, Z_1:k)      Joint: P(a_k = j | s_k=i, Z_1:k)
 
-        # Hint list_a of lists_b to list_b of lists_a: zip(*immstate_mixture.components)
-        mode_states = None # TODO:
+        # We want P(x_k | s_k =i, Z_1:k) =  Joint * P( x_k | a_k = j, s_k = i, Z_1:k)
+        # Where we know the last term is in immstate_mixture.components[j].components[i] for i modes, j associations
+        mode_states = []
 
+        for i, fs in zip(range(len(self.filters)), self.filters):
+
+            # This is (3) from graded assignment, summed over all association hypothesis
+            mode_conditional_density_components =  \
+                [immstate_mixture.components[j].components[i] for j in range(len(weights))]
+
+            # Reduce with mode_conditional_association weights
+            reduced_mode_conditional = fs.reduce_mixture(
+                    MixtureParameters(
+                        weights=mode_conditioned_component_prob,
+                        components=mode_conditional_density_components))
+
+            mode_states.append(reduced_mode_conditional)
+
+        # Final reduction over modes
         immstate_reduced = MixtureParameters(mode_prob, mode_states)
 
         return immstate_reduced
